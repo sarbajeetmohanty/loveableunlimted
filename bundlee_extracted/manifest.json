@@ -18,11 +18,8 @@
     "https://api.lovable.dev/*",
     "https://lovable-api.com/*",
     "https://jelclpesgtcfgngmudoj.supabase.co/*",
-    "https://jelclpesgtcfgngmudoj.supabase.co/*",
     "https://*.lovable.app/*",
-    "https://*.supabase.co/*",
-    "https://jelclpesgtcfgngmudoj.supabase.co/*",
-    "https://jelclpesgtcfgngmudoj.supabase.co/*"
+    "https://*.supabase.co/*"
   ],
   "icons": {
     "16": "icons/icon16.png",
@@ -82,6 +79,7 @@
       ],
       "js": [
         "hwFingerprint.js",
+        "powerkits-core.js",
         "content.js",
         "ota-update.js",
         "bundlee-branding.js"
