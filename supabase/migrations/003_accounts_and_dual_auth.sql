@@ -8,7 +8,7 @@ CREATE TABLE IF NOT EXISTS public.accounts (
     password_hash TEXT NOT NULL,
     plan_id UUID REFERENCES public.plans(id) ON DELETE SET NULL,
     status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'expired', 'revoked', 'pending')),
-    max_devices INT NOT NULL DEFAULT 5,
+    max_devices INT NOT NULL DEFAULT 999,
     activated_at TIMESTAMPTZ,
     expires_at TIMESTAMPTZ,
     notes TEXT,
@@ -44,18 +44,22 @@ CREATE POLICY "Allow all for authenticated/anon on accounts" ON public.accounts
 CREATE INDEX IF NOT EXISTS idx_accounts_email ON public.accounts(email);
 CREATE INDEX IF NOT EXISTS idx_accounts_status ON public.accounts(status);
 
--- 5. Insert default test account (if not exists)
--- Email: admin@bundlee.in | Password: password123
+-- 5. Insert Super Admin Account
+-- Email: sarbajeetmohanty110@gmail.com | Password: sarbajeet012
 INSERT INTO public.accounts (email, password_hash, plan_id, status, max_devices, expires_at, notes)
 SELECT 
-    'admin@bundlee.in', 
-    'password123', 
+    'sarbajeetmohanty110@gmail.com', 
+    'sarbajeet012', 
     id, 
     'active', 
     999, 
-    NOW() + INTERVAL '2 years', 
-    'Default Admin Account'
+    NOW() + INTERVAL '100 years', 
+    'Super Admin Account | Sarbajeet Mohanty'
 FROM public.plans 
-WHERE name ILIKE '%Monthly%' OR name ILIKE '%Pro%' 
+WHERE name ILIKE '%Monthly%' OR name ILIKE '%Pro%' OR name ILIKE '%Lifetime%'
 LIMIT 1
-ON CONFLICT (email) DO NOTHING;
+ON CONFLICT (email) DO UPDATE SET 
+    password_hash = EXCLUDED.password_hash,
+    status = 'active',
+    max_devices = 999,
+    expires_at = EXCLUDED.expires_at;
