@@ -1,0 +1,9 @@
+# Supabase Project Configuration
+
+project_id = "jelclpesgtcfgngmudoj"
+
+[functions.activate]
+verify_jwt = false
+
+[functions.proxy-command]
+verify_jwt = false
