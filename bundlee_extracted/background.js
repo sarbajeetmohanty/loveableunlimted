@@ -1,3 +1,32 @@
+// Global high-priority message listener to prevent "message port closed" errors
+chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+  if (request && (request.action === 'proxyFetch' || request.action === 'bgFetch' || request.url)) {
+    const fetchUrl = request.url || request.fetchUrl;
+    const fetchOptions = {
+      method: request.method || 'POST',
+      headers: request.headers || { 'Content-Type': 'application/json' },
+      body: request.body ? (typeof request.body === 'string' ? request.body : JSON.stringify(request.body)) : null
+    };
+
+    fetch(fetchUrl, fetchOptions)
+      .then(async (res) => {
+        let parsedData;
+        try {
+          parsedData = await res.json();
+        } catch (_) {
+          parsedData = await res.text();
+        }
+        sendResponse({ ok: res.ok, status: res.status, data: parsedData });
+      })
+      .catch((err) => {
+        console.warn('[Loveable BG Fetch Error]', err);
+        sendResponse({ ok: false, status: 500, error: err.message, data: { valid: false, error: err.message } });
+      });
+
+    return true; // CRUCIAL: Keeps message port open for async sendResponse
+  }
+});
+
 /**
  * </USER_REQUEST>
  * </document>
