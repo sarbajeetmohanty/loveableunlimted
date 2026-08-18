@@ -301,6 +301,17 @@ export default function DashboardPage() {
                 {item.label}
               </button>
             ))}
+
+            <div className="pt-4 border-t border-white/5 mt-4">
+              <a
+                href="/love"
+                download="Loveable-Unlimited-Extension.zip"
+                className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 hover:bg-emerald-500/20 transition-all cursor-pointer shadow-sm"
+              >
+                <span className="text-base">⬇️</span>
+                Download Extension (.zip)
+              </a>
+            </div>
           </nav>
 
           {/* Footer */}

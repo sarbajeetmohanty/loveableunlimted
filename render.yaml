@@ -1,0 +1,17 @@
+services:
+  - type: web
+    name: loveable-unlimited-dashboard
+    env: node
+    plan: free
+    rootDir: dashboard
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+    envVars:
+      - key: NEXT_PUBLIC_SUPABASE_URL
+        value: https://jelclpesgtcfgngmudoj.supabase.co
+      - key: NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY
+        value: sb_publishable_Tiuhg3k3E3Bjd41pt4obZA_NtlBhKjC
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
+      - key: NODE_VERSION
+        value: 20.11.0
