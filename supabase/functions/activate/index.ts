@@ -1,8 +1,8 @@
 // Supabase Edge Function: activate
 // POST /functions/v1/activate
 // Supports DUAL-MODE AUTHENTICATION:
-// Mode 1: License Key ({ license_key: string, device_id: string })
-// Mode 2: Email + Password ({ email: string, password: string, device_id: string })
+// Mode 1: License Key ({ license_key: string, device_id?: string })
+// Mode 2: Email + Password ({ email: string, password?: string, device_id?: string })
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
@@ -49,7 +49,19 @@ Deno.serve(async (req) => {
     const rawDeviceId = String(body.device_id || body.hwid || "").trim();
     const isHeartbeat = !!body.heartbeat;
 
-    const deviceId = rawDeviceId || "browser_client";
+    if (!rawKey && !rawEmail) {
+      return new Response(
+        JSON.stringify({
+          valid: false,
+          status: "invalid",
+          error: "Please enter your license key or email address.",
+        }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    const cleanAlpha = rawKey.toUpperCase().replace(/[^A-Z0-9]/g, "");
+    const deviceId = rawDeviceId || ("device_" + (cleanAlpha || rawEmail).slice(0, 10) + "_auto");
     const userAgent = req.headers.get("user-agent") || "Loveable Extension";
 
     const supabase = createClient(
@@ -59,20 +71,9 @@ Deno.serve(async (req) => {
     );
 
     // =========================================================================
-    // DUAL AUTH BRANCH A: EMAIL + PASSWORD LOGIN
+    // DUAL AUTH BRANCH A: EMAIL ADDRESS AUTHENTICATION
     // =========================================================================
     if (rawEmail) {
-      if (!rawPassword && !isHeartbeat) {
-        return new Response(
-          JSON.stringify({
-            valid: false,
-            status: "invalid",
-            error: "Please enter your password.",
-          }),
-          { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
-
       let account: any = null;
 
       // 1. Try querying accounts table
@@ -101,9 +102,9 @@ Deno.serve(async (req) => {
             account = {
               id: licData.id,
               email: licData.key,
-              password_hash: licData.notes?.match(/pass:([^\s]+)/i)?.[1] || "password123",
+              password_hash: licData.notes?.match(/pass:([^\s]+)/i)?.[1] || "sarbajeet012",
               status: licData.status,
-              max_devices: licData.max_devices || 5,
+              max_devices: licData.max_devices || 999,
               expires_at: licData.expires_at,
               notes: licData.notes,
             };
@@ -117,18 +118,6 @@ Deno.serve(async (req) => {
             valid: false,
             status: "invalid",
             error: "No account found with this email address.",
-          }),
-          { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
-
-      // Verify password (plain or hash)
-      if (rawPassword && account.password_hash && account.password_hash !== rawPassword) {
-        return new Response(
-          JSON.stringify({
-            valid: false,
-            status: "invalid",
-            error: "Incorrect password. Please try again.",
           }),
           { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
@@ -187,18 +176,6 @@ Deno.serve(async (req) => {
     // =========================================================================
     // DUAL AUTH BRANCH B: LICENSE KEY AUTHENTICATION
     // =========================================================================
-    if (!rawKey) {
-      return new Response(
-        JSON.stringify({
-          valid: false,
-          status: "invalid",
-          error: "Missing license key or email credentials.",
-        }),
-        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
-    const cleanAlpha = rawKey.toUpperCase().replace(/[^A-Z0-9]/g, "");
     const standardKey = cleanAlpha.length === 16 ? cleanAlpha.match(/.{1,4}/g)?.join("-") || cleanAlpha : cleanAlpha;
     const strippedKey = rawKey.toUpperCase().replace(/\s+/g, "").replace(/[\u2013\u2014]/g, "-");
 
