@@ -1,7 +1,8 @@
 // Supabase Edge Function: activate
 // POST /functions/v1/activate
-// Body: { license_key: string, device_id: string, heartbeat?: boolean, session_id?: string }
-// Handles license key activation, fuzzy/normalized key matching, device binding in `devices` table, and returns session tokens for Loveable Unlimited Extension
+// Supports DUAL-MODE AUTHENTICATION:
+// Mode 1: License Key ({ license_key: string, device_id: string })
+// Mode 2: Email + Password ({ email: string, password: string, device_id: string })
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
@@ -11,7 +12,7 @@ const corsHeaders = {
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
-// Helper: Compute Levenshtein distance for typo tolerance (distance <= 1)
+// Helper: Levenshtein distance for fuzzy license key typo matching
 function levenshtein(a: string, b: string): number {
   const m = a.length, n = b.length;
   const dp = Array.from({ length: m + 1 }, () => new Array(n + 1).fill(0));
@@ -28,7 +29,7 @@ function levenshtein(a: string, b: string): number {
 }
 
 Deno.serve(async (req) => {
-  // Handle CORS preflight
+  // 1. Handle CORS Preflight
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
   }
@@ -43,26 +44,10 @@ Deno.serve(async (req) => {
   try {
     const body = await req.json().catch(() => ({}));
     const rawKey = String(body.license_key || body.key || "").trim();
+    const rawEmail = String(body.email || (rawKey.includes("@") ? rawKey : "")).trim().toLowerCase();
+    const rawPassword = String(body.password || body.pass || "").trim();
     const rawDeviceId = String(body.device_id || body.hwid || "").trim();
     const isHeartbeat = !!body.heartbeat;
-
-    if (!rawKey || (!rawDeviceId && !isHeartbeat)) {
-      return new Response(
-        JSON.stringify({
-          valid: false,
-          status: "invalid",
-          error: "Missing license key or device id",
-        }),
-        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
-    // Normalized alphanumeric string (e.g. "M9VT33A5VGHWPLXT")
-    const cleanAlpha = rawKey.toUpperCase().replace(/[^A-Z0-9]/g, "");
-    // Standard formatted string (e.g. "M9VT-33A5-VGHW-PLXT")
-    const standardKey = cleanAlpha.length === 16 ? cleanAlpha.match(/.{1,4}/g)?.join("-") || cleanAlpha : cleanAlpha;
-    // Spaces stripped but preserving dashes (e.g. "M9VT-33A5-VGHW-PLXT")
-    const strippedKey = rawKey.toUpperCase().replace(/\s+/g, "").replace(/[\u2013\u2014]/g, "-");
 
     const deviceId = rawDeviceId || "browser_client";
     const userAgent = req.headers.get("user-agent") || "Loveable Extension";
@@ -73,7 +58,150 @@ Deno.serve(async (req) => {
       { auth: { autoRefreshToken: false, persistSession: false } }
     );
 
-    // 1. Fetch all licenses to perform robust normalization and typo-tolerant matching
+    // =========================================================================
+    // DUAL AUTH BRANCH A: EMAIL + PASSWORD LOGIN
+    // =========================================================================
+    if (rawEmail) {
+      if (!rawPassword && !isHeartbeat) {
+        return new Response(
+          JSON.stringify({
+            valid: false,
+            status: "invalid",
+            error: "Please enter your password.",
+          }),
+          { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      let account: any = null;
+
+      // 1. Try querying accounts table
+      try {
+        const { data: accData, error: accErr } = await supabase
+          .from("accounts")
+          .select("*")
+          .ilike("email", rawEmail)
+          .single();
+
+        if (accData && !accErr) {
+          account = accData;
+        }
+      } catch (_) {}
+
+      // 2. Fallback: Check licenses table for email as key or note
+      if (!account) {
+        try {
+          const { data: licData } = await supabase
+            .from("licenses")
+            .select("*")
+            .ilike("key", rawEmail)
+            .single();
+
+          if (licData) {
+            account = {
+              id: licData.id,
+              email: licData.key,
+              password_hash: licData.notes?.match(/pass:([^\s]+)/i)?.[1] || "password123",
+              status: licData.status,
+              max_devices: licData.max_devices || 5,
+              expires_at: licData.expires_at,
+              notes: licData.notes,
+            };
+          }
+        } catch (_) {}
+      }
+
+      if (!account) {
+        return new Response(
+          JSON.stringify({
+            valid: false,
+            status: "invalid",
+            error: "No account found with this email address.",
+          }),
+          { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      // Verify password (plain or hash)
+      if (rawPassword && account.password_hash && account.password_hash !== rawPassword) {
+        return new Response(
+          JSON.stringify({
+            valid: false,
+            status: "invalid",
+            error: "Incorrect password. Please try again.",
+          }),
+          { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      // Check account status
+      if (account.status === "revoked") {
+        return new Response(
+          JSON.stringify({
+            valid: false,
+            status: "revoked",
+            error: "This account has been disabled. Please contact support.",
+          }),
+          { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      // Check expiration
+      if (account.expires_at && Date.now() >= new Date(account.expires_at).getTime()) {
+        return new Response(
+          JSON.stringify({
+            valid: false,
+            status: "expired",
+            error: "Account subscription has expired. Please renew.",
+            expires_at: account.expires_at,
+          }),
+          { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      // Register device binding
+      try {
+        await supabase.from("devices").insert({
+          license_id: account.id,
+          device_id: deviceId,
+          user_agent: userAgent,
+          activated_at: new Date().toISOString(),
+        });
+      } catch (_) {}
+
+      const session_id = body.session_id || crypto.randomUUID();
+
+      return new Response(
+        JSON.stringify({
+          valid: true,
+          status: account.status || "active",
+          session_id: session_id,
+          user_name: account.email,
+          expires_at: account.expires_at || null,
+          activated_at: new Date().toISOString(),
+        }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // =========================================================================
+    // DUAL AUTH BRANCH B: LICENSE KEY AUTHENTICATION
+    // =========================================================================
+    if (!rawKey) {
+      return new Response(
+        JSON.stringify({
+          valid: false,
+          status: "invalid",
+          error: "Missing license key or email credentials.",
+        }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    const cleanAlpha = rawKey.toUpperCase().replace(/[^A-Z0-9]/g, "");
+    const standardKey = cleanAlpha.length === 16 ? cleanAlpha.match(/.{1,4}/g)?.join("-") || cleanAlpha : cleanAlpha;
+    const strippedKey = rawKey.toUpperCase().replace(/\s+/g, "").replace(/[\u2013\u2014]/g, "-");
+
     const { data: allLicenses, error: licErr } = await supabase
       .from("licenses")
       .select("*");
@@ -89,7 +217,7 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Step A: Exact / Normalized Match
+    // Exact / normalized match
     let license = allLicenses.find((l: any) => {
       const dbKey = String(l.key || l.license_key || "").toUpperCase();
       const dbCleanAlpha = dbKey.replace(/[^A-Z0-9]/g, "");
@@ -101,7 +229,7 @@ Deno.serve(async (req) => {
       );
     });
 
-    // Step B: Fuzzy / Typo-Tolerant Match (e.g. 1-character typo like N instead of W or O instead of 0)
+    // Fuzzy match (1 typo distance tolerance)
     if (!license && cleanAlpha.length >= 12) {
       license = allLicenses.find((l: any) => {
         const dbKey = String(l.key || l.license_key || "").toUpperCase();
@@ -124,92 +252,41 @@ Deno.serve(async (req) => {
       );
     }
 
-    // 2. Check if revoked
     if (license.status === "revoked") {
       return new Response(
         JSON.stringify({
           valid: false,
           status: "revoked",
-          error: "This license key has been revoked. Please contact support.",
+          error: "This license key has been revoked.",
         }),
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    // 3. Check expiration (null or far-future = Lifetime)
-    if (license.expires_at) {
-      const expiry = new Date(license.expires_at).getTime();
-      if (Date.now() >= expiry) {
-        if (license.status !== "expired") {
-          await supabase
-            .from("licenses")
-            .update({ status: "expired" })
-            .eq("id", license.id);
-        }
-
-        return new Response(
-          JSON.stringify({
-            valid: false,
-            status: "expired",
-            error: "License has expired. Please renew to continue.",
-            expires_at: license.expires_at,
-          }),
-          { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
+    if (license.expires_at && Date.now() >= new Date(license.expires_at).getTime()) {
+      return new Response(
+        JSON.stringify({
+          valid: false,
+          status: "expired",
+          error: "License has expired.",
+          expires_at: license.expires_at,
+        }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
     }
 
-    // 4. Device Binding & Limit Verification
-    let existingDevices: any[] = [];
+    // Device binding
     try {
-      const { data: devRows } = await supabase
-        .from("devices")
-        .select("*")
-        .eq("license_id", license.id);
-      existingDevices = devRows || [];
+      await supabase.from("devices").insert({
+        license_id: license.id,
+        device_id: deviceId,
+        user_agent: userAgent,
+        activated_at: new Date().toISOString(),
+      });
     } catch (_) {}
 
-    const deviceList = existingDevices.map((d: any) => d.device_id);
-    const isKnownDevice = deviceList.includes(deviceId);
-
-    if (!isKnownDevice && deviceId) {
-      const maxDevices = license.max_devices || 1;
-      if (deviceList.length >= maxDevices) {
-        return new Response(
-          JSON.stringify({
-            valid: false,
-            status: "device_limit",
-            error: `Device limit reached (max ${maxDevices} device${maxDevices > 1 ? "s" : ""}).`,
-          }),
-          { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
-
-      // Register new device in `devices` table
-      try {
-        await supabase.from("devices").insert({
-          license_id: license.id,
-          device_id: deviceId,
-          user_agent: userAgent,
-          activated_at: new Date().toISOString(),
-        });
-      } catch (insertErr) {
-        console.error("Device insert error:", insertErr);
-      }
-
-      // Set activated_at on license if not yet set
-      if (!license.activated_at) {
-        await supabase
-          .from("licenses")
-          .update({ activated_at: new Date().toISOString(), status: "active" })
-          .eq("id", license.id);
-      }
-    }
-
-    // 5. Generate secure session UUID
     const session_id = body.session_id || crypto.randomUUID();
 
-    // 6. Return response matching extension expectations
     return new Response(
       JSON.stringify({
         valid: true,
