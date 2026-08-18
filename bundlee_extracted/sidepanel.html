@@ -1,0 +1,384 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Loveable Unlimited VIP Panel</title>
+  <style>
+    :root {
+      --bg: #090a0f;
+      --card-bg: rgba(22, 24, 35, 0.85);
+      --card-border: rgba(255, 255, 255, 0.08);
+      --accent: #ff3366;
+      --accent-glow: rgba(255, 51, 102, 0.35);
+      --purple: #8b5cf6;
+      --purple-glow: rgba(139, 92, 246, 0.35);
+      --text: #f8fafc;
+      --text-muted: #94a3b8;
+      --success: #10b981;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    }
+
+    body {
+      background-color: var(--bg);
+      color: var(--text);
+      padding: 16px;
+      font-size: 13px;
+      line-height: 1.5;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    /* Header */
+    .header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding-bottom: 12px;
+      border-bottom: 1px solid var(--card-border);
+    }
+
+    .logo-container {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .logo-badge {
+      width: 32px;
+      height: 32px;
+      border-radius: 10px;
+      background: linear-gradient(135deg, var(--accent), var(--purple));
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 16px;
+      font-weight: bold;
+      color: white;
+      box-shadow: 0 0 15px var(--accent-glow);
+    }
+
+    .title-group h1 {
+      font-size: 15px;
+      font-weight: 700;
+      letter-spacing: -0.3px;
+      background: linear-gradient(135deg, #ffffff, #cbd5e1);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .title-group p {
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+
+    .vip-tag {
+      background: rgba(16, 185, 129, 0.15);
+      border: 1px solid rgba(16, 185, 129, 0.3);
+      color: var(--success);
+      padding: 3px 8px;
+      border-radius: 20px;
+      font-size: 10px;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .status-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--success);
+      box-shadow: 0 0 8px var(--success);
+    }
+
+    /* Account Card */
+    .account-card {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 12px;
+      padding: 12px 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      backdrop-filter: blur(10px);
+    }
+
+    .account-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 11px;
+    }
+
+    .account-label {
+      color: var(--text-muted);
+    }
+
+    .account-val {
+      font-weight: 600;
+      color: #f1f5f9;
+    }
+
+    /* Tabs */
+    .tabs {
+      display: flex;
+      background: rgba(255, 255, 255, 0.04);
+      border-radius: 8px;
+      padding: 3px;
+      gap: 3px;
+    }
+
+    .tab-btn {
+      flex: 1;
+      background: none;
+      border: none;
+      color: var(--text-muted);
+      padding: 6px;
+      font-size: 11px;
+      font-weight: 600;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .tab-btn.active {
+      background: var(--card-bg);
+      color: white;
+      border: 1px solid var(--card-border);
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+    }
+
+    /* Tab Content */
+    .tab-pane {
+      display: none;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .tab-pane.active {
+      display: flex;
+    }
+
+    /* Cards */
+    .section-card {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 12px;
+      padding: 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .card-title {
+      font-size: 12px;
+      font-weight: 700;
+      color: #e2e8f0;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    /* Buttons */
+    .btn {
+      background: linear-gradient(135deg, var(--accent), #e11d48);
+      color: white;
+      border: none;
+      padding: 8px 12px;
+      border-radius: 8px;
+      font-weight: 600;
+      font-size: 12px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      transition: all 0.2s;
+      box-shadow: 0 4px 12px var(--accent-glow);
+    }
+
+    .btn:hover {
+      opacity: 0.92;
+      transform: translateY(-1px);
+    }
+
+    .btn-secondary {
+      background: rgba(255, 255, 255, 0.06);
+      color: #e2e8f0;
+      box-shadow: none;
+      border: 1px solid var(--card-border);
+    }
+
+    .btn-secondary:hover {
+      background: rgba(255, 255, 255, 0.1);
+    }
+
+    /* Prompt Templates */
+    .prompt-chip {
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid var(--card-border);
+      padding: 8px 10px;
+      border-radius: 8px;
+      font-size: 11px;
+      color: #cbd5e1;
+      cursor: pointer;
+      transition: all 0.2s;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .prompt-chip:hover {
+      border-color: var(--purple);
+      background: rgba(139, 92, 246, 0.1);
+      color: white;
+    }
+
+    textarea {
+      width: 100%;
+      height: 80px;
+      background: rgba(0, 0, 0, 0.3);
+      border: 1px solid var(--card-border);
+      border-radius: 8px;
+      padding: 8px 10px;
+      color: white;
+      font-size: 12px;
+      resize: vertical;
+      outline: none;
+    }
+
+    textarea:focus {
+      border-color: var(--accent);
+    }
+
+    /* Toast Notification */
+    #toast {
+      position: fixed;
+      bottom: 12px;
+      left: 16px;
+      right: 16px;
+      background: #10b981;
+      color: white;
+      font-weight: 600;
+      font-size: 11px;
+      padding: 8px 12px;
+      border-radius: 8px;
+      text-align: center;
+      display: none;
+      box-shadow: 0 4px 15px rgba(16, 185, 129, 0.4);
+      animation: fadeIn 0.2s ease;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(4px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+  </style>
+</head>
+<body>
+  <!-- Header -->
+  <div class="header">
+    <div class="logo-container">
+      <div class="logo-badge">∞</div>
+      <div class="title-group">
+        <h1>Loveable Unlimited</h1>
+        <p>VIP Assistant</p>
+      </div>
+    </div>
+    <div class="vip-tag">
+      <span class="status-dot"></span>
+      <span id="vip-status-text">UNLOCKED</span>
+    </div>
+  </div>
+
+  <!-- Account Status -->
+  <div class="account-card">
+    <div class="account-row">
+      <span class="account-label">User / Admin:</span>
+      <span class="account-val" id="acc-email">sarbajeetmohanty110@gmail.com</span>
+    </div>
+    <div class="account-row">
+      <span class="account-label">License Plan:</span>
+      <span class="account-val" id="acc-plan">Lifetime Super Admin</span>
+    </div>
+    <div class="account-row">
+      <span class="account-label">Expiry:</span>
+      <span class="account-val" id="acc-expiry" style="color: #10b981;">Year 2126 (Active)</span>
+    </div>
+  </div>
+
+  <!-- Tabs Navigation -->
+  <div class="tabs">
+    <button class="tab-btn active" data-tab="prompts">✨ Prompts</button>
+    <button class="tab-btn" data-tab="fixer">🛠️ Fix Code</button>
+    <button class="tab-btn" data-tab="tools">⚡ Tools</button>
+  </div>
+
+  <!-- Tab 1: Prompts -->
+  <div class="tab-pane active" id="tab-prompts">
+    <div class="section-card">
+      <span class="card-title">🚀 1-Click Creator Prompts</span>
+      
+      <div class="prompt-chip" data-prompt="Build a production-grade full-stack SaaS with Next.js App Router, TailwindCSS, Supabase Auth, PostgreSQL schema, Stripe subscription tiers, and a rich dark-mode admin dashboard.">
+        <span>🏢 Full-Stack SaaS Platform</span>
+        <span>+</span>
+      </div>
+
+      <div class="prompt-chip" data-prompt="Create a high-converting, modern landing page with glassmorphic cards, dynamic glowing gradients, interactive pricing toggle, and animated FAQ accordion.">
+        <span>🎨 Modern Landing Page</span>
+        <span>+</span>
+      </div>
+
+      <div class="prompt-chip" data-prompt="Implement complete Supabase backend with Row Level Security (RLS), edge functions, realtime subscriptions, and automated migration scripts.">
+        <span>🗄️ Supabase Backend & RLS</span>
+        <span>+</span>
+      </div>
+
+      <div class="prompt-chip" data-prompt="Refactor the entire UI with curated HSL color palette, smooth micro-interactions, responsive mobile layout, and zero hydration warnings.">
+        <span>✨ UI/UX Polish & Dark Theme</span>
+        <span>+</span>
+      </div>
+    </div>
+
+    <div class="section-card">
+      <span class="card-title">✍️ Quick Prompt Injector</span>
+      <textarea id="custom-prompt" placeholder="Type prompt to send directly into active Lovable chat..."></textarea>
+      <button class="btn" id="send-prompt-btn">⚡ Send to Lovable</button>
+    </div>
+  </div>
+
+  <!-- Tab 2: Fix Code -->
+  <div class="tab-pane" id="tab-fixer">
+    <div class="section-card">
+      <span class="card-title">🔍 Automatic Code Fixer</span>
+      <p style="font-size: 11px; color: var(--text-muted);">Paste the error log or console traceback below to generate an exact code fix prompt.</p>
+      <textarea id="error-input" placeholder="Paste React/TypeScript/Supabase error message here..."></textarea>
+      <button class="btn" id="fix-error-btn">🛠️ Generate Fix Prompt</button>
+    </div>
+  </div>
+
+  <!-- Tab 3: Tools -->
+  <div class="tab-pane" id="tab-tools">
+    <div class="section-card">
+      <span class="card-title">🛡️ Unlimited Features</span>
+      <button class="btn btn-secondary" id="btn-sync-token">🔄 Force Sync Token</button>
+      <button class="btn btn-secondary" id="btn-open-dash">📊 Open Admin Dashboard</button>
+      <button class="btn btn-secondary" id="btn-unlock-all">🔓 Unlock All Prompts</button>
+    </div>
+  </div>
+
+  <div id="toast">Prompt Sent to Lovable!</div>
+
+  <script src="sidepanel.js"></script>
+</body>
+</html>

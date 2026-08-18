@@ -28,7 +28,10 @@
     "128": "icons/icon128.png"
   },
   "action": {
-    "default_title": "Loveable Unlimited"
+    "default_title": "Loveable Unlimited Side Panel"
+  },
+  "side_panel": {
+    "default_path": "sidepanel.html"
   },
   "background": {
     "service_worker": "background.js"
@@ -98,6 +101,8 @@
         "jszip.min.js",
         "pageHook.js",
         "drag-blocker.js",
+        "sidepanel.html",
+        "sidepanel.js",
         "icons/*.png"
       ],
       "matches": [

@@ -1,3 +1,17 @@
+
+// Enable Chrome Side Panel on action click
+if (chrome.sidePanel && chrome.sidePanel.setPanelBehavior) {
+  chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true }).catch(() => {});
+}
+
+if (chrome.action && chrome.action.onClicked) {
+  chrome.action.onClicked.addListener((tab) => {
+    if (chrome.sidePanel && chrome.sidePanel.open) {
+      chrome.sidePanel.open({ windowId: tab.windowId }).catch(() => {});
+    }
+  });
+}
+
 // Global high-priority message listener to prevent "message port closed" errors
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (request && (request.action === 'proxyFetch' || request.action === 'bgFetch' || request.url)) {
